@@ -2,3 +2,6 @@
 .stack-work/
 tftp-server.cabal
 *~
+
+# IntelliJ
+.idea/
