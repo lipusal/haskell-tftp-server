@@ -20,7 +20,10 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/lipusal/haskell-tftp-server#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+#- base >= 4.12 && < 5
+- base >=3 && <4.10
+- tftp
+- filepath
 
 library:
   source-dirs: src
