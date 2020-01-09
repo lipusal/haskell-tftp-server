@@ -18,30 +18,9 @@ packages:
   original:
     git: https://github.com/bradrn/terminal-size
     commit: 591033712003b58f8c61dba0fc60e95439df9c9b
-- completed:
-    hackage: tftp-0.2@sha256:39b7ba0fe378408f83361da29bfe6ef9aef835ae9e6af9ca2e35977f458e8a93,3520
-    pantry-tree:
-      size: 814
-      sha256: 065e8945a92fef67f63ebf1566ef3a55c7cb8d14357ae02296d2ebe3a31e544e
-  original:
-    hackage: tftp-0.2
-- completed:
-    hackage: network-2.3.2.1@sha256:c4f588f096dffa353210c40bfb8556e838021db99a0427b487363d68b6976c44,2061
-    pantry-tree:
-      size: 1906
-      sha256: 4169e0d8a03a7e2cc0f86976eb8be1c540b51e7c2ced0e0fba3a7d7cfb1f6fc2
-  original:
-    hackage: network-2.3.2.1@sha256:c4f588f096dffa353210c40bfb8556e838021db99a0427b487363d68b6976c44,2061
-- completed:
-    hackage: filepath-1.4.1.1@sha256:e0fbbfb7f8cd59dd62bef32fdd6d957defb3babc427dcb3ba81088397ddca36e,2195
-    pantry-tree:
-      size: 681
-      sha256: 5e645cf87145a1d3536dd0876aa0e56169451a756077a1a2bca87ebe03a648f6
-  original:
-    hackage: filepath-1.4.1.1
 snapshots:
 - completed:
-    size: 537868
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/9/21.yaml
-    sha256: 0a3be91c2bce851de4755003cfb1d85d62b6f90276231fcc305729c0c5c864a9
-  original: lts-9.21
+    size: 524154
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/20.yaml
+    sha256: 2f5099f69ddb6abfe64400fe1e6a604e8e628f55e6837211cd70a81eb0a8fa4d
+  original: lts-14.20
