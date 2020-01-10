@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/lipu
 
 dependencies:
 - base >= 4.12 && < 5
+- network-house
 
 library:
   source-dirs: src

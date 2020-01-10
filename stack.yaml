@@ -44,6 +44,7 @@ extra-deps:
 # To get Intero working, see https://github.com/commercialhaskell/stack/issues/4901#issuecomment-510390753
 - git: https://github.com/bradrn/terminal-size
   commit: 591033712003b58f8c61dba0fc60e95439df9c9b
+- network-house-0.1.0.2
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

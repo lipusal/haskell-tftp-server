@@ -18,6 +18,13 @@ packages:
   original:
     git: https://github.com/bradrn/terminal-size
     commit: 591033712003b58f8c61dba0fc60e95439df9c9b
+- completed:
+    hackage: network-house-0.1.0.2@sha256:12233ef0f9a9039d970691941db1254f6dc44763f16b7ce0ef8b73a044aeacae,1847
+    pantry-tree:
+      size: 1926
+      sha256: 5613c97ff99c92b70e6984c3df41a1a58d21c061ab9d776efc264a3a6d4cb592
+  original:
+    hackage: network-house-0.1.0.2
 snapshots:
 - completed:
     size: 524154
