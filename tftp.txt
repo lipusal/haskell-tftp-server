@@ -1,0 +1,102 @@
+TFTP
+
+Runs over UDP
+
+
+Modes:
+- netascii (8-bit ascii, check this later)
+- octet (binary)
+- mail/netascii characters sent to a user rather than a file. MAIL MODE IS OBSOLETE AND SHOULD NOT BE IMPLEMENTED OR USED
+- additional modes can be defined by pairs of cooperating hosts
+
+
+Overview
+- Any transfer begins with a request to read or write a file, which also serves to request a connection.
+- Files are sent in fixed-size packets of 512 bytes
+- Packets of less than 512 signal termination of transfer
+- For every packet sent, an ACK is awaited before the next packet is sent
+- Most errors cause connection termination
+- UDP packet "size" field is used as TFTP packet size
+- Transfer Identifiers (TID's) on TFTP <=> UDP ports
+
+
+Initial connection protocol
+- A: Pick a random TID
+- A: Send WRQ or RRQ to port 69 of B (A:TIDa => B:69)
+- B: Pick a random TID
+- B: Send ACK response with block number 0 for WRQ, or first data packet for RRQ (B:TIDb => A:TIDa)
+- A: Send first data packet with block number 1 for WRQ (A:TIDa => B:TIDb)
+
+- Only handled error condition: Receiving mismatched TID. Example:
+   Host A sends a request to host B. Somewhere in the network, the request packet is
+   duplicated, and as a result two acknowledgments are returned to host
+   A, with different TID's chosen on host B in response to the two
+   requests.  When the first response arrives, host A continues the
+   connection.  When the second response to the request arrives, it
+   should be rejected, but there is no reason to terminate the first
+   connection.  Therefore, if different TID's are chosen for the two
+   connections on host B and host A checks the source TID's of the
+   messages it receives, the first connection can be maintained while
+   the second is rejected by returning an error packet.
+
+
+TFTP Packets
+
+opcode  operation
+  1     Read request (RRQ)
+  2     Write request (WRQ)
+  3     Data (DATA)
+  4     Acknowledgment (ACK)
+  5     Error (ERROR)
+
+RRQ/WRQ packet
+
+ 2 bytes     string    1 byte     string   1 byte
+ ------------------------------------------------
+| Opcode |  Filename  |   0  |    Mode    |   0  |
+ ------------------------------------------------
+Mode = "netascii", "octet" or "mail"
+
+DATA packet
+
+ 2 bytes     2 bytes      n bytes
+ ----------------------------------
+| Opcode |   Block #  |   Data     |
+ ----------------------------------
+The block numbers on data packets begin with one and increase by one for each new block of data.
+
+ACK packet
+
+ 2 bytes     2 bytes
+ ---------------------
+| Opcode |   Block #  |
+ ---------------------
+- All packets other than duplicate ACK's and those used for termination are acknowledged unless a timeout occurs.
+- Sending a DATA packet is an acknowledgment for the first ACK packet of the previous DATA packet.
+- The WRQ and DATA packets are acknowledged by ACK or ERROR packets, while RRQ and ACK packets are acknowledged by DATA or ERROR packets.
+- The block number in an ACK echoes the block number of the DATA packet being acknowledged.
+- A WRQ is acknowledged with an ACK packet having a block number of zero.
+
+ERROR packet
+
+ 2 bytes     2 bytes      string    1 byte
+ -----------------------------------------
+| Opcode |  ErrorCode |   ErrMsg   |   0  |
+ -----------------------------------------
+Error Codes
+Value     Meaning
+0         Not defined, see error message (if any).
+1         File not found.
+2         Access violation.
+3         Disk full or allocation exceeded.
+4         Illegal TFTP operation.
+5         Unknown transfer ID.
+6         File already exists.
+7         No such user.
+
+Normal termination
+- DATA packet with 0 <= size <= 511
+- The host acknowledging the final DATA packet may terminate its side of the connection on sending the final ACK.
+ + But suggest waiting in case the final ACK was not received, and possibly retransmit
+
+
