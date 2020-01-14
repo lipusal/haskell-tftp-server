@@ -19,6 +19,20 @@ packages:
     git: https://github.com/bradrn/terminal-size
     commit: 591033712003b58f8c61dba0fc60e95439df9c9b
 - completed:
+    hackage: network-2.8.0.1@sha256:0f165dffa752d8cde30c2bde86f80609c4f1dc5eeb3182d593041f97839c5b3b,3011
+    pantry-tree:
+      size: 2488
+      sha256: 2dbdda2225969dcd452d983a2ac7e52341e5fc1df76103342c9fac08fc686931
+  original:
+    hackage: network-2.8.0.1
+- completed:
+    hackage: bytestring-0.10.8.2@sha256:0a58355cb91bc9930f951a6d14f5fb4a6022647c3aab2b7223e888843bb6a832,8921
+    pantry-tree:
+      size: 2788
+      sha256: 5ebb0fddb2f9cdf4a295bbb610279ba7651547355d882942ad08c62efb00183c
+  original:
+    hackage: bytestring-0.10.8.2
+- completed:
     hackage: network-house-0.1.0.2@sha256:12233ef0f9a9039d970691941db1254f6dc44763f16b7ce0ef8b73a044aeacae,1847
     pantry-tree:
       size: 1926
