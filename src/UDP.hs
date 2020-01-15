@@ -16,7 +16,11 @@ runUDPServer = do
   sock <- socket (addrFamily serveraddr) Datagram defaultProtocol
   -- Bind socket (ie. start listening)
   bind sock (addrAddress serveraddr)
-  sockName <- getSocketName sock
-  putStrLn ("Started server on " ++ sockName)
-  forever (do recv sock 4096 >>= print)
+  portNum <- socketPort sock
+  putStrLn ("Started server on port " ++ (show portNum))
+  forever (do
+    socketData <- recv sock 4096
+    putStrLn("<<<< Received data: " ++ show socketData)
+    sendAll sock socketData
+    putStrLn(">>>> Replied data: " ++ show socketData))
 
