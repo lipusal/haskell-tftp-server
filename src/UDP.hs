@@ -5,6 +5,7 @@ import Control.Monad             (forever)
 import qualified Data.ByteString.Char8 as C
 import Network.Socket hiding     (recv)
 import Network.Socket.ByteString (recv, sendAll)
+import TFTP
 
 -- SOURCE: http://www.mchaver.com/posts/2017-06-12-haskell-network-programming-1.html
 
@@ -20,7 +21,9 @@ runUDPServer = do
   putStrLn ("Started server on port " ++ (show portNum))
   forever (do
     socketData <- recv sock 4096
-    putStrLn("<<<< Received data: " ++ show socketData))
+    putStrLn("<<<< Received data: " ++ show socketData)
+    let tftpPacket = fromByteString socketData
+    putStrLn("<<<< Packet: " ++ show tftpPacket))
     -- sendAll sock socketData
     -- putStrLn(">>>> Replied data: " ++ show socketData))
 
