@@ -1,8 +1,9 @@
 module TFTP where
 
 import Data.Word
-import Data.Bits (shiftL, (.&.))
+import Data.Bits (shiftL, (.|.))
 import qualified Data.ByteString
+import Debug.Trace
 
 data Packet =
     RRQ String String -- opcode 1 + filename + 0 + mode + 0
@@ -23,12 +24,12 @@ fromCharArray 2 d = Just (WRQ (showList d "") "")
 fromCharArray 3 (b1:b2:b) = Just (DATA (word8to16 [b1,b2]) b)
 fromCharArray 4 (b1:b2:_) = Just (ACK (word8to16 [b1,b2]))
 fromCharArray 5 (b1:b2:b) = Just (ERROR (word8to16 [b1,b2]) (showList b ""))
-fromCharArray x y = Nothing
+fromCharArray x y = trace ("Received opcode=" ++ show x ++ " and data=" ++ (showList y "")) Nothing
 
 
 singleWord8to16 :: Word8 -> Word16
 singleWord8to16 n = fromInteger(toInteger n)
 
 word8to16 :: [Word8] -> Word16
--- return (higher << 8) & lower
-word8to16 (higher:lower:_) = (.&.) (fromInteger(toInteger higher) `shiftL` 8) (fromInteger(toInteger lower))
+-- return (higher << 8) | lower
+word8to16 (higher:lower:_) = (.|.) (fromInteger(toInteger higher) `shiftL` 8) (fromInteger(toInteger lower))
