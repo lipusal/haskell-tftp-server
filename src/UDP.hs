@@ -20,7 +20,7 @@ runUDPServer = do
   putStrLn ("Started server on port " ++ (show portNum))
   forever (do
     socketData <- recv sock 4096
-    putStrLn("<<<< Received data: " ++ show socketData)
-    sendAll sock socketData
-    putStrLn(">>>> Replied data: " ++ show socketData))
+    putStrLn("<<<< Received data: " ++ show socketData))
+    -- sendAll sock socketData
+    -- putStrLn(">>>> Replied data: " ++ show socketData))
 
