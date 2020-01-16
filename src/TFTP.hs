@@ -20,12 +20,15 @@ fromByteString d = fromCharArray opcode16 rest
 fromCharArray :: Word16 -> [Word8] -> Maybe Packet
 fromCharArray 1 d = Just (RRQ (showList d "") "")
 fromCharArray 2 d = Just (WRQ (showList d "") "")
--- fromCharArray 3 (b1:b2:b) = Just (DATA (word8to16 [b1,b2]) b)
-fromCharArray 1 d = Just (RRQ (showList d "") "")
+fromCharArray 3 (b1:b2:b) = Just (DATA (word8to16 [b1,b2]) b)
+fromCharArray 4 (b1:b2:_) = Just (ACK (word8to16 [b1,b2]))
+fromCharArray 5 (b1:b2:b) = Just (ERROR (word8to16 [b1,b2]) (showList b ""))
+fromCharArray x y = Nothing
 
 
 singleWord8to16 :: Word8 -> Word16
 singleWord8to16 n = fromInteger(toInteger n)
 
 word8to16 :: [Word8] -> Word16
-word8to16 (higher:lower:_) = (fromInteger(toInteger lower) `shiftL` 8) (.&.) fromInteger(toInteger lower)
+-- return (higher << 8) & lower
+word8to16 (higher:lower:_) = (.&.) (fromInteger(toInteger higher) `shiftL` 8) (fromInteger(toInteger lower))
