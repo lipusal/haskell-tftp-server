@@ -5,6 +5,10 @@ import Data.Char
 import Data.Bits (shiftL, (.|.))
 import qualified Data.ByteString
 import Debug.Trace
+import System.IO
+import System.IO.Error
+
+blockSize = 512
 
 data Packet =
     RRQ String String -- opcode 1 + filename + 0 + mode + 0
@@ -35,6 +39,44 @@ fromOpcode 5 d = Just (ERROR errCode errMsg)
 fromOpcode x y = trace ("Received opcode=" ++ show x ++ " and data=" ++ byteStringtoString y) Nothing
 
 
+process :: Packet -> IO ([Packet])
+process (RRQ filename mode) = fileToPackets filename (map toLower mode)
+process (WRQ filename mode) = return [ACK 0] -- TODO: We have to save state to know what we're reading from. Use TIDs
+process (DATA blockNum payload) = return [ACK blockNum] -- TODO: Write to file, we have to have a session set to know file name
+process (ACK blockNum) = return [] -- TODO: Send more data on RRQ, or close connection, etc.
+process (ERROR errNum errMsg) = trace ("ERROR " ++ show errNum ++ ": " ++ errMsg) return []
+
+fileToPackets :: String -> String -> IO ([Packet])
+fileToPackets filename "netascii" = (do
+    -- TODO the only thing that changes here is openFile/openBinaryFile. DRY
+    handle <- openFile filename ReadMode
+    contents <- Data.ByteString.hGetContents handle
+    return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
+    ) `catchIOError` fileReadHandler
+fileToPackets filename "octet" = (do
+    handle <- openBinaryFile filename ReadMode
+    contents <- Data.ByteString.hGetContents handle
+    return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
+    ) `catchIOError` fileReadHandler
+fileToPackets filename mode = return [ERROR 0 ("Invalid mode " ++ mode)]
+
+fileReadHandler :: IOError -> IO ([Packet])
+fileReadHandler e
+    | isAlreadyInUseError e = return [ERROR 2 "File already in use"]
+    | isDoesNotExistError e = return [ERROR 1 "File not found"]
+    | isPermissionError e = return [ERROR 2 ("Permission error: " ++ ioeGetErrorString e)]
+    | otherwise = return [ERROR 2 ("Error: " ++ ioeGetErrorString e)]
+
+-- Split a bytestring into chunks of size blockSize
+chunks :: Data.ByteString.ByteString -> [Data.ByteString.ByteString]
+chunks b = if Data.ByteString.null b then [] else chunk:(chunks remainder)
+    where (chunk, remainder) = Data.ByteString.splitAt blockSize b
+
+-- Source: https://stackoverflow.com/a/16192050/2333689
+mapWithIndex :: (a -> Int -> b) -> [a] -> [b]
+mapWithIndex f l = zipWith f l [0..]
+
+
 fromByteString2 :: Data.ByteString.ByteString -> Maybe Packet
 fromByteString2 d = fromCharArray2 opcode16 rest
     where (opHigh:opLow:rest) = Data.ByteString.unpack d
@@ -58,7 +100,7 @@ byteStringtoString :: Data.ByteString.ByteString -> String
 byteStringtoString = map (chr.fromEnum).Data.ByteString.unpack
 
 singleWord8to16 :: Word8 -> Word16
-singleWord8to16 n = fromInteger(toInteger n)
+singleWord8to16 = fromInteger.toInteger
 
 -- Convert the first two bytes of the given bytestring to a 2-byte integer
 byteStringToWord16 :: Data.ByteString.ByteString -> Word16
