@@ -56,6 +56,24 @@ RRQ/WRQ packet
 | Opcode |  Filename  |   0  |    Mode    |   0  |
  ------------------------------------------------
 Mode = "netascii", "octet" or "mail"
+RRQ:
+  1) A -> B: RRQ /a/b.txt 0 octet 0
+  2) B -> A: DATA 1 ... (or ERROR)
+  3) A -> B: ACK 1
+  4) B -> A: DATA 2 ...
+  ...
+  n) B -> A: DATA x ... // this packet is of size < 512
+  n+1) A -> B: ACK x
+  TODO) Ver cierre conexión
+WRQ:
+  1) A -> B: WRQ /a/b.txt 0 octet 0
+  2) B -> A: ACK 0 (or ERROR)
+  3) A -> B: DATA 1 ...
+  4) B -> A: ACK 1
+  ...
+  n) A -> B: DATA x ... // this packet is of size < 512
+  n+1) A -> B: ACK x
+  TODO) Ver cierre conexión
 
 DATA packet
 
