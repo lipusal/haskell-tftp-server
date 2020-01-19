@@ -7,5 +7,4 @@ import qualified UDP
 main :: IO ()
 main = do
     helloWorld
-    print (TFTP.RRQ "/a/b/c" "octet")
     UDP.runUDPServer
