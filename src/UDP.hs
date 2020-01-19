@@ -22,6 +22,7 @@ runUDPServer = do
   forever (do
     socketData <- recv sock 4096
     putStrLn("<<<< Received data: " ++ show socketData)
+    -- let tftpPacket = fromByteString2 socketData
     let tftpPacket = fromByteString socketData
     putStrLn("<<<< Packet: " ++ show tftpPacket))
     -- sendAll sock socketData
