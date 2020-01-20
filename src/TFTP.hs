@@ -79,11 +79,13 @@ fileToPackets filename "netascii" = (do
     -- TODO the only thing that changes here is openFile/openBinaryFile. DRY
     handle <- openFile filename ReadMode
     contents <- BS.hGetContents handle
+    hClose handle
     return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
     ) `catchIOError` fileReadHandler
 fileToPackets filename "octet" = (do
     handle <- openBinaryFile filename ReadMode
     contents <- BS.hGetContents handle
+    hClose handle
     return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
     ) `catchIOError` fileReadHandler
 fileToPackets filename mode = return [ERROR 0 ("Invalid mode " ++ mode)]
