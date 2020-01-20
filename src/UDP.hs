@@ -23,13 +23,13 @@ runUDPServer = do
   putStrLn ("Started server on port " ++ (show portNum))
   forever (do
     (socketData, recvAddr) <- recvFrom listenSocket 4096
-    putStrLn("<<<< Received data: " ++ show socketData)
+    -- putStrLn("<<<< Received data: " ++ show socketData)
     let tftpPacket = fromByteString socketData
     -- let tftpPacket = fromByteString2 socketData
     putStrLn("<<<< Packet: " ++ show tftpPacket)
     if (isNothing tftpPacket) then return () else (do
       responsePackets <- process (fromJust tftpPacket)
-      putStrLn(">>>> Packets: " ++ showList responsePackets "")
+      putStrLn(">>>> Packets (" ++ show (length responsePackets) ++ "): " ++ showList responsePackets "")
       let response = Data.ByteString.concat (map toByteString responsePackets)
       -- putStrLn(">>>> Response data: " ++ byteStringtoString response)
       replySocket <- socket (addrFamily serveraddr) Datagram defaultProtocol
