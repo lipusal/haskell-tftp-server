@@ -9,13 +9,12 @@ import Debug.Trace
 import System.IO
 import System.IO.Error
 import Network.Socket (Socket)
+import Network.Socket.ByteString (recv, recvFrom, send, sendAll, sendAllTo)
 
 blockSize = 512
 
 data Session = Session {
-    -- rxSocket :: Socket, -- Receiving soccket
-    -- txSocket :: Socket, -- Sending socket
-    socket :: Socket, -- RX/TX socket
+    sock :: Socket, -- Socket with local and remote TIDs (ports)
     openingPacket :: Packet,
     blockNum :: Integer,
     pendingPackets :: [Packet]
@@ -30,7 +29,32 @@ data Packet =
     | ERROR Word16 String deriving Show -- opcode 5 + error code + error message + 0
 
 newSession :: Socket -> Packet -> Session
-newSession sock packet = Session { socket = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
+newSession sock packet = Session { sock = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
+
+handle :: Session -> IO ()
+handle session@(Session { openingPacket = (RRQ filename mode) }) = do
+    packets <- fileToPackets filename (map toLower mode)
+    sendFile packets session
+handle (Session { openingPacket = (WRQ filename mode) }) = return ()
+handle sess = trace ("Attempting to handle session with invalid opening packet: " ++ show sess) return ()
+
+sendFile :: [Packet] -> Session -> IO ()
+sendFile filePackets session = mapM_ (sendDataPacket session) filePackets
+
+-- Send data packet until appropriate ACK is received
+sendDataPacket :: Session -> Packet -> IO ()
+sendDataPacket session packet@(DATA blockNum payload) = do
+    putStrLn(">>>> " ++ show packet)
+    sendAll (sock session) (toByteString packet)
+    recvData <- recv (sock session) 1024
+    let response = fromByteString recvData
+    putStrLn("<<<< " ++ show response)
+    if not(isAck blockNum response) then sendDataPacket session packet else return ()
+ 
+-- Checks if given package is an ACK for the specified block number
+isAck :: Word16 -> Maybe Packet -> Bool
+isAck expectedBlockNum (Just(ACK blocknum)) = blocknum == expectedBlockNum
+isAck _ _ = False
 
 fromByteString :: BS.ByteString -> Maybe Packet
 fromByteString bs = fromOpcode opcode payload
