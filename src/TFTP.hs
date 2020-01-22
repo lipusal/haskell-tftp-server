@@ -8,8 +8,18 @@ import qualified Data.ByteString.Char8 as C
 import Debug.Trace
 import System.IO
 import System.IO.Error
+import Network.Socket (Socket)
 
 blockSize = 512
+
+data Session = Session {
+    -- rxSocket :: Socket, -- Receiving soccket
+    -- txSocket :: Socket, -- Sending socket
+    socket :: Socket, -- RX/TX socket
+    openingPacket :: Packet,
+    blockNum :: Integer,
+    pendingPackets :: [Packet]
+} deriving Show
 
 data Packet =
     RRQ String String -- opcode 1 + filename + 0 + mode + 0
@@ -18,6 +28,9 @@ data Packet =
     | DATA2 Word16 [Word8] -- opcode 3 + block number + data TODO also consider strict/lazy bytestrings
     | ACK Word16 -- opcode 4 + block number
     | ERROR Word16 String deriving Show -- opcode 5 + error code + error message + 0
+
+newSession :: Socket -> Packet -> Session
+newSession sock packet = Session { socket = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
 
 fromByteString :: BS.ByteString -> Maybe Packet
 fromByteString bs = fromOpcode opcode payload
