@@ -4,14 +4,16 @@ import Data.Word
 import Data.Char
 import Data.Bits (shiftL, shiftR, (.&.), (.|.))
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as C
 import Debug.Trace
-import System.IO
+import System.IO hiding (hGetContents, hPut)
 import System.IO.Error
 import Network.Socket (Socket)
 import Network.Socket.ByteString (recv, recvFrom, send, sendAll, sendAllTo)
+import Data.Maybe
+import Data.Either
 
-blockSize = 512
+-- TFTP DATA packet size is 512 bytes, minus 2 bytes for opcode, minus 2 bytes for block number
+blockSize = 508
 
 data Session = Session {
     sock :: Socket, -- Socket with local and remote TIDs (ports)
@@ -23,7 +25,7 @@ data Session = Session {
 data Packet =
     RRQ String String -- opcode 1 + filename + 0 + mode + 0
     | WRQ String String -- opcode 2 + filename + 0 + mode + 0
-    | DATA Word16 BS.ByteString -- opcode 3 + block number + data TODO also consider strict/lazy bytestrings
+    | DATA Word16 BS.ByteString -- opcode 3 + block number + data TODO also consider lazy bytestrings
     | DATA2 Word16 [Word8] -- opcode 3 + block number + data TODO also consider strict/lazy bytestrings
     | ACK Word16 -- opcode 4 + block number
     | ERROR Word16 String deriving Show -- opcode 5 + error code + error message + 0
@@ -35,8 +37,32 @@ handle :: Session -> IO ()
 handle session@(Session { openingPacket = (RRQ filename mode) }) = do
     packets <- fileToPackets filename (map toLower mode)
     sendFile packets session
-handle (Session { openingPacket = (WRQ filename mode) }) = return ()
+handle session@(Session { openingPacket = (WRQ filename mode) }) = receiveFile session
 handle sess = trace ("Attempting to handle session with invalid opening packet: " ++ show sess) return ()
+
+receiveFile :: Session -> IO ()
+receiveFile session@(Session { openingPacket = (WRQ filename mode) }) = do
+    let socket = sock session
+    eitherHandle <- openFileHandler filename WriteMode mode
+    either
+        (\errPacket -> sendAll socket (toByteString errPacket))
+        (\handle -> do
+            sendPacket socket (ACK 0)
+            file <- recvFile socket 1
+            BS.hPut handle file
+            hClose handle
+        )
+        eitherHandle
+receiveFile _ = return ()
+
+sendPacket :: Socket -> Packet -> IO()
+sendPacket sock packet = trace(">>>> " ++ show packet) sendAll sock (toByteString packet)
+
+recvPacket :: Socket -> IO(Maybe Packet)
+recvPacket socket = do
+    recvData <- recv socket blockSize
+    let result = fromByteString recvData
+    trace("<<<< " ++ show result) return result
 
 sendFile :: [Packet] -> Session -> IO ()
 sendFile filePackets session = mapM_ (sendDataPacket session) filePackets
@@ -44,12 +70,39 @@ sendFile filePackets session = mapM_ (sendDataPacket session) filePackets
 -- Send data packet until appropriate ACK is received
 sendDataPacket :: Session -> Packet -> IO ()
 sendDataPacket session packet@(DATA blockNum payload) = do
-    putStrLn(">>>> " ++ show packet)
-    sendAll (sock session) (toByteString packet)
-    recvData <- recv (sock session) 1024
-    let response = fromByteString recvData
-    putStrLn("<<<< " ++ show response)
-    if not(isAck blockNum response) then sendDataPacket session packet else return ()
+    sendPacket (sock session) packet    
+    response <- recvPacket (sock session)
+    if not(isAck blockNum response) then sendDataPacket session packet else return () -- TODO better handle incorrect packages. Send error and close connection
+
+recvFile :: Socket -> Word16 -> IO(BS.ByteString)
+recvFile sock blockNum = do
+    (packet, nextBlockNum) <- recvDataPacket sock blockNum
+    sendPacket sock (ACK blockNum)
+    let payload = dataPayload packet
+    if (isNothing nextBlockNum) then return payload else do
+        remainder <- recvFile sock (fromJust nextBlockNum)
+        return(BS.concat [payload, remainder])
+
+recvDataPacket :: Socket -> Word16 -> IO(Packet, Maybe Word16)
+recvDataPacket sock expectedBlockNum = do
+    packet <- recvPacket sock
+    if (isData expectedBlockNum packet)
+        then return(fromJust packet, nextDataBlockNum(fromJust packet))
+        else recvDataPacket sock expectedBlockNum -- retry until successful
+
+-- Checks if the given package is a DATA package with the specified block number
+isData :: Word16 -> Maybe Packet -> Bool
+isData expectedBlockNum (Just(DATA blockNum _)) = blockNum == expectedBlockNum
+isData _ _ = False
+
+dataLength :: Packet -> Int
+dataLength (DATA _ payload) = BS.length payload
+
+nextDataBlockNum :: Packet -> Maybe Word16
+nextDataBlockNum packet@(DATA blockNum payload) = trace("DATA packet length = " ++ show (dataLength packet) ++ ", expected = " ++ show blockSize) (if dataLength packet == blockSize then Just(blockNum+1) else Nothing)
+
+dataPayload :: Packet -> BS.ByteString
+dataPayload (DATA _ payload) = payload
  
 -- Checks if given package is an ACK for the specified block number
 isAck :: Word16 -> Maybe Packet -> Bool
@@ -112,27 +165,32 @@ process (ACK blockNum) = return [] -- TODO: Send more data on RRQ, or close conn
 process (ERROR errNum errMsg) = trace ("ERROR " ++ show errNum ++ ": " ++ errMsg) return []
 
 fileToPackets :: String -> String -> IO ([Packet])
-fileToPackets filename "netascii" = (do
-    -- TODO the only thing that changes here is openFile/openBinaryFile. DRY
-    handle <- openFile filename ReadMode
-    contents <- BS.hGetContents handle
-    hClose handle
-    return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
-    ) `catchIOError` fileReadHandler
-fileToPackets filename "octet" = (do
-    handle <- openBinaryFile filename ReadMode
-    contents <- BS.hGetContents handle
-    hClose handle
-    return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
-    ) `catchIOError` fileReadHandler
-fileToPackets filename mode = return [ERROR 0 ("Invalid mode " ++ mode)]
+fileToPackets filename mode = do
+    eitherHandle <- openFileHandler filename ReadMode mode
+    either
+        (\errorPacket -> return [errorPacket])
+        (\handle -> do
+            contents <- BS.hGetContents handle
+            hClose handle
+            return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
+        )
+        eitherHandle
 
-fileReadHandler :: IOError -> IO ([Packet])
-fileReadHandler e
-    | isAlreadyInUseError e = return [ERROR 2 "File already in use"]
-    | isDoesNotExistError e = return [ERROR 1 "File not found"]
-    | isPermissionError e = return [ERROR 2 ("Permission error: " ++ ioeGetErrorString e)]
-    | otherwise = return [ERROR 2 ("Error: " ++ ioeGetErrorString e)]
+openFileHandler :: FilePath -> IOMode -> String -> IO (Either Packet Handle)
+openFileHandler path mode "netascii" = (do
+    handle <- openFile path mode
+    return(Right handle)) `catchIOError` (\e -> return(Left(myHandler e)))
+openFileHandler path mode "octet" = (do
+        handle <- openBinaryFile path mode
+        return(Right handle)) `catchIOError` (\e -> return(Left(myHandler e)))
+openFileHandler _ _ tftpMode = return(Left(ERROR 4 ("Invalid mode " ++ tftpMode)))
+
+myHandler :: IOError -> Packet -- TODO rename
+myHandler e
+    | isAlreadyInUseError e = ERROR 2 "File already in use"
+    | isDoesNotExistError e = ERROR 1 "File not found"
+    | isPermissionError e = ERROR 2 ("Permission error: " ++ ioeGetErrorString e)
+    | otherwise = ERROR 2 ("Error: " ++ ioeGetErrorString e)
 
 -- Split a bytestring into chunks of size blockSize
 chunks :: BS.ByteString -> [BS.ByteString]
