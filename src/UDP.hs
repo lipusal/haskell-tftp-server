@@ -43,6 +43,8 @@ mainLoop listenSock = do
   let tftpPacket = fromByteString rxData
   putStrLn("<<<< " ++ show tftpPacket)
   handleSession tftpPacket socket
+  putStrLn("Connection <127.0.0.1:" ++ show portNum ++ ", " ++ show txSocketAddr ++ "> complete, closing socket")
+  close' socket -- close' to throw exception if underlying system throws exception
 
 handleSession :: Maybe Packet -> Socket -> IO ()
 handleSession Nothing _ = return ()
