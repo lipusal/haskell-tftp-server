@@ -34,9 +34,12 @@ newSession :: Socket -> Packet -> Session
 newSession sock packet = Session { sock = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
 
 handle :: Session -> IO ()
-handle session@(Session { openingPacket = (RRQ filename mode) }) = do
-    packets <- fileToPackets filename (map toLower mode)
-    sendFile packets session
+handle session@(Session { openingPacket = (RRQ filename mode), sock = sock }) = do
+    eitherPackets <- fileToPackets filename (map toLower mode)
+    either
+        (\errPacket -> sendPacket sock errPacket)
+        (\filePackets -> sendFile filePackets session)
+        eitherPackets
 handle session@(Session { openingPacket = (WRQ filename mode) }) = receiveFile session
 handle sess = trace ("Attempting to handle session with invalid opening packet: " ++ show sess) return ()
 
@@ -156,23 +159,26 @@ toByteString (ERROR errNum errMsg) = BS.concat [
     stringToByteString errMsg,
     BS.singleton 0]
 
+-- TODO delete this, only kepy as reference
+-- process :: Packet -> IO ([Packet])
+-- process (RRQ filename mode) = fileToPackets filename (map toLower mode)
+-- process (WRQ filename mode) = return [ACK 0] -- TODO: We have to save state to know what we're reading from. Use TIDs
+-- process (DATA blockNum payload) = return [ACK blockNum] -- TODO: Write to file, we have to have a session set to know file name
+-- process (ACK blockNum) = return [] -- TODO: Send more data on RRQ, or close connection, etc.
+-- process (ERROR errNum errMsg) = trace ("ERROR " ++ show errNum ++ ": " ++ errMsg) return []
 
-process :: Packet -> IO ([Packet])
-process (RRQ filename mode) = fileToPackets filename (map toLower mode)
-process (WRQ filename mode) = return [ACK 0] -- TODO: We have to save state to know what we're reading from. Use TIDs
-process (DATA blockNum payload) = return [ACK blockNum] -- TODO: Write to file, we have to have a session set to know file name
-process (ACK blockNum) = return [] -- TODO: Send more data on RRQ, or close connection, etc.
-process (ERROR errNum errMsg) = trace ("ERROR " ++ show errNum ++ ": " ++ errMsg) return []
-
-fileToPackets :: String -> String -> IO ([Packet])
+-- Attempt to read a file and split it into packets. If there's an error opening the file, return appropriate error packet.
+fileToPackets :: String -> String -> IO (Either Packet [Packet])
 fileToPackets filename mode = do
+    -- TODO this can probably be simplified
     eitherHandle <- openFileHandler filename ReadMode mode
     either
-        (\errorPacket -> return [errorPacket])
+        (\errorPacket -> return(Left errorPacket))
         (\handle -> do
             contents <- BS.hGetContents handle
             hClose handle
-            return (mapWithIndex (\dat index -> DATA (fromIntegral (index+1)) dat) (chunks contents))
+            let result = mapWithIndex (\dat index -> DATA (fromIntegral(index+1)) dat) (chunks contents)
+            return(Right result)
         )
         eitherHandle
 
