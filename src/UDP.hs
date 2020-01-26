@@ -13,14 +13,14 @@ import TFTP
 
 resolve :: Maybe String -> IO (AddrInfo)
 resolve portNum = do
-  -- Resolve 127.0.0.1:portNum. Returns array of possible values, best is first
-  addrinfos <- getAddrInfo Nothing (Just "127.0.0.1") portNum
+  -- Resolve 0.0.0.0:portNum. Returns array of possible values, best is first
+  addrinfos <- getAddrInfo Nothing (Just "0.0.0.0") portNum
   return(head addrinfos)
 
 openPort :: Maybe String -> IO (Socket)
 openPort portNum = do
   serverAddr <- resolve portNum
-  result <- socket (addrFamily serverAddr) Datagram defaultProtocol
+  result <- socket AF_INET Datagram defaultProtocol
   -- Bind socket (ie. start listening)
   bind result (addrAddress serverAddr)
   return result
