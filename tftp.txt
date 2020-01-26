@@ -9,6 +9,16 @@ Modes:
 - mail/netascii characters sent to a user rather than a file. MAIL MODE IS OBSOLETE AND SHOULD NOT BE IMPLEMENTED OR USED
 - additional modes can be defined by pairs of cooperating hosts
 
+netascii:
+- Modified form of ASCII, defined in RFC 764: 8-bit extension of the 7-bit ASCII character space
+- From 0x20 to 0x7F (the printable characters and the space) and eight of the control characters
+- Allowed control characters include:
+  - Null (0x00)
+  - Line feed (LF, 0x0A)
+  - Carriage return (CR, 0x0D)
+- LF encoded to CRLF
+- CR encoded to CRLF
+- CRLF decoded to the platform's representation of a new line
 
 Overview
 - Any transfer begins with a request to read or write a file, which also serves to request a connection.
