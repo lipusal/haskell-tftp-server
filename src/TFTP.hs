@@ -12,8 +12,11 @@ import Network.Socket.ByteString (recv, recvFrom, send, sendAll, sendAllTo)
 import Data.Maybe
 import Data.Either
 
--- TFTP DATA packet size is 512 bytes, minus 2 bytes for opcode, minus 2 bytes for block number
-blockSize = 508
+dataSize = 512
+packetSize = dataSize + 2 + 2 + 8
+--                      ^ block number
+--                          ^ opcode
+--                              ^ UDP header size
 
 data Session = Session {
     sock :: Socket, -- Socket with local and remote TIDs (ports)
@@ -63,7 +66,7 @@ sendPacket sock packet = trace(">>>> " ++ show packet) sendAll sock (toByteStrin
 
 recvPacket :: Socket -> IO(Maybe Packet)
 recvPacket socket = do
-    recvData <- recv socket blockSize
+    recvData <- recv socket packetSize
     let result = fromByteString recvData
     trace("<<<< " ++ show result) return result
 
@@ -102,7 +105,8 @@ dataLength :: Packet -> Int
 dataLength (DATA _ payload) = BS.length payload
 
 nextDataBlockNum :: Packet -> Maybe Word16
-nextDataBlockNum packet@(DATA blockNum payload) = trace("DATA packet length = " ++ show (dataLength packet) ++ ", expected = " ++ show blockSize) (if dataLength packet == blockSize then Just(blockNum+1) else Nothing)
+-- nextDataBlockNum packet@(DATA blockNum payload) = trace("DATA packet length = " ++ show (dataLength packet) ++ ", expected = " ++ show dataSize) (if dataLength packet == dataSize then Just(blockNum+1) else Nothing)
+nextDataBlockNum packet@(DATA blockNum payload) = if dataLength packet == dataSize then Just(blockNum+1) else Nothing
 
 dataPayload :: Packet -> BS.ByteString
 dataPayload (DATA _ payload) = payload
@@ -198,10 +202,10 @@ myHandler e
     | isPermissionError e = ERROR 2 ("Permission error: " ++ ioeGetErrorString e)
     | otherwise = ERROR 2 ("Error: " ++ ioeGetErrorString e)
 
--- Split a bytestring into chunks of size blockSize
+-- Split a bytestring into chunks of size dataSize
 chunks :: BS.ByteString -> [BS.ByteString]
 chunks b = if BS.null b then [] else chunk:(chunks remainder)
-    where (chunk, remainder) = BS.splitAt blockSize b
+    where (chunk, remainder) = BS.splitAt dataSize b
 
 -- Source: https://stackoverflow.com/a/16192050/2333689
 mapWithIndex :: (a -> Int -> b) -> [a] -> [b]
