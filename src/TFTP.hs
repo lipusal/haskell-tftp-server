@@ -15,6 +15,7 @@ import Network.Socket.ByteString (recv, recvFrom, send, sendAll, sendAllTo)
 import Data.Maybe
 import Data.Either
 import Netascii
+import Control.Monad
 
 newSession :: Socket -> Packet -> Session
 newSession sock packet = Session { sock = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
@@ -34,11 +35,11 @@ receiveFile session@(Session { openingPacket = (WRQ filename mode) }) = do
     let socket = sock session
     eitherHandle <- openFileHandler filename WriteMode mode
     either
-        (\errPacket -> sendAll socket (toByteString errPacket))
+        (sendPacket socket)  -- Partial application, this receives the packet
         (\handle -> do
             sendPacket socket (ACK 0)
-            file <- recvFile socket 1
-            BS.hPut handle file
+            maybeFileContents <- recvFile socket 1
+            when (isJust maybeFileContents) (BS.hPut handle (fromJust maybeFileContents))
             hClose handle
         )
         eitherHandle
@@ -63,14 +64,19 @@ sendDataPacket session packet@(DATA blockNum payload) = do
     response <- recvPacket (sock session)
     if not(isAck blockNum response) then sendDataPacket session packet else return () -- TODO better handle incorrect packages. Send error and close connection
 
-recvFile :: Socket -> Word16 -> IO(BS.ByteString)
+recvFile :: Socket -> Word16 -> IO(Maybe BS.ByteString)
 recvFile sock blockNum = do
     (packet, nextBlockNum) <- recvDataPacket sock blockNum
-    sendPacket sock (ACK blockNum)
-    let payload = dataPayload packet
-    if (isNothing nextBlockNum) then return payload else do
-        remainder <- recvFile sock (fromJust nextBlockNum)
-        return(BS.concat [payload, remainder])
+    if not $ isNetascii(dataPayload packet)
+        then (do
+            sendPacket sock (ERROR 0 "File contents are outside netascii range, use octet mode")
+            return Nothing)
+        else (do 
+            sendPacket sock (ACK blockNum)
+            let payload = dataPayload packet
+            if (isNothing nextBlockNum) then return $ Just payload else do
+                remainder <- recvFile sock (fromJust nextBlockNum)
+                return $ Just(BS.concat [payload, fromJust remainder]))
 
 recvDataPacket :: Socket -> Word16 -> IO(Packet, Maybe Word16)
 recvDataPacket sock expectedBlockNum = do
