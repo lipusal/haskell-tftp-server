@@ -38,7 +38,7 @@ receiveFile session@(Session { openingPacket = (WRQ filename mode) }) = do
         (sendPacket socket)  -- Partial application, this receives the packet
         (\handle -> do
             sendPacket socket (ACK 0)
-            maybeFileContents <- recvFile socket 1
+            maybeFileContents <- recvFile mode socket 1
             when (isJust maybeFileContents) (BS.hPut handle (fromJust maybeFileContents))
             hClose handle
         )
@@ -64,19 +64,23 @@ sendDataPacket session packet@(DATA blockNum payload) = do
     response <- recvPacket (sock session)
     when (not $ isAck blockNum response) (sendDataPacket session packet) -- TODO better handle incorrect packages. Send error and close connection
 
-recvFile :: Socket -> Word16 -> IO(Maybe BS.ByteString)
-recvFile sock blockNum = do
+recvFile :: String -> Socket -> Word16 -> IO(Maybe BS.ByteString)
+recvFile mode sock blockNum = do
     (packet, nextBlockNum) <- recvDataPacket sock blockNum
-    if not $ isNetascii(dataPayload packet)
+    if mode == "netascii" && (not $ isNetascii(dataPayload packet))
         then (do
             sendPacket sock (ERROR 0 "File contents are outside netascii range, use octet mode")
             return Nothing)
         else (do 
             sendPacket sock (ACK blockNum)
             let payload = dataPayload packet
-            if (isNothing nextBlockNum) then return $ Just payload else do
-                remainder <- recvFile sock (fromJust nextBlockNum)
-                return $ Just(BS.concat [payload, fromJust remainder]))
+            maybe
+                (return $ Just payload)
+                (\nextBlock -> do
+                    remainder <- recvFile mode sock nextBlock
+                    return $ Just(BS.concat [payload, fromJust remainder])
+                )
+                nextBlockNum)
 
 recvDataPacket :: Socket -> Word16 -> IO(Packet, Maybe Word16)
 recvDataPacket sock expectedBlockNum = do
