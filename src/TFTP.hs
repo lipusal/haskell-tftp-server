@@ -4,6 +4,9 @@ import Data.Word
 import Data.Char
 import Data.Bits (shiftL, shiftR, (.&.), (.|.))
 import qualified Data.ByteString as BS
+import TFTP.Packet
+import TFTP.Files
+import TFTP.Constants
 import Debug.Trace
 import System.IO hiding (hGetContents, hPut)
 import System.IO.Error
@@ -11,27 +14,7 @@ import Network.Socket (Socket)
 import Network.Socket.ByteString (recv, recvFrom, send, sendAll, sendAllTo)
 import Data.Maybe
 import Data.Either
-
-dataSize = 512
-packetSize = dataSize + 2 + 2 + 8
---                      ^ block number
---                          ^ opcode
---                              ^ UDP header size
-
-data Session = Session {
-    sock :: Socket, -- Socket with local and remote TIDs (ports)
-    openingPacket :: Packet,
-    blockNum :: Integer,
-    pendingPackets :: [Packet]
-} deriving Show
-
-data Packet =
-    RRQ String String -- opcode 1 + filename + 0 + mode + 0
-    | WRQ String String -- opcode 2 + filename + 0 + mode + 0
-    | DATA Word16 BS.ByteString -- opcode 3 + block number + data TODO also consider lazy bytestrings
-    | DATA2 Word16 [Word8] -- opcode 3 + block number + data TODO also consider strict/lazy bytestrings
-    | ACK Word16 -- opcode 4 + block number
-    | ERROR Word16 String deriving Show -- opcode 5 + error code + error message + 0
+import Netascii
 
 newSession :: Socket -> Packet -> Session
 newSession sock packet = Session { sock = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
@@ -162,74 +145,6 @@ toByteString (ERROR errNum errMsg) = BS.concat [
     word16ToByteString errNum,
     stringToByteString errMsg,
     BS.singleton 0]
-
--- TODO delete this, only kepy as reference
--- process :: Packet -> IO ([Packet])
--- process (RRQ filename mode) = fileToPackets filename (map toLower mode)
--- process (WRQ filename mode) = return [ACK 0] -- TODO: We have to save state to know what we're reading from. Use TIDs
--- process (DATA blockNum payload) = return [ACK blockNum] -- TODO: Write to file, we have to have a session set to know file name
--- process (ACK blockNum) = return [] -- TODO: Send more data on RRQ, or close connection, etc.
--- process (ERROR errNum errMsg) = trace ("ERROR " ++ show errNum ++ ": " ++ errMsg) return []
-
--- Attempt to read a file and split it into packets. If there's an error opening the file, return appropriate error packet.
-fileToPackets :: String -> String -> IO (Either Packet [Packet])
-fileToPackets filename mode = do
-    -- TODO this can probably be simplified
-    eitherHandle <- openFileHandler filename ReadMode mode
-    either
-        (\errorPacket -> return(Left errorPacket))
-        (\handle -> do
-            contents <- BS.hGetContents handle
-            hClose handle
-            let result = mapWithIndex (\dat index -> DATA (fromIntegral(index+1)) dat) (chunks contents)
-            return(Right result)
-        )
-        eitherHandle
-
-openFileHandler :: FilePath -> IOMode -> String -> IO (Either Packet Handle)
-openFileHandler path mode "netascii" = (do
-    handle <- openFile path mode
-    return(Right handle)) `catchIOError` (\e -> return(Left(myHandler e)))
-openFileHandler path mode "octet" = (do
-        handle <- openBinaryFile path mode
-        return(Right handle)) `catchIOError` (\e -> return(Left(myHandler e)))
-openFileHandler _ _ tftpMode = return(Left(ERROR 4 ("Invalid mode " ++ tftpMode)))
-
-myHandler :: IOError -> Packet -- TODO rename
-myHandler e
-    | isAlreadyInUseError e = ERROR 2 "File already in use"
-    | isDoesNotExistError e = ERROR 1 "File not found"
-    | isPermissionError e = ERROR 2 ("Permission error: " ++ ioeGetErrorString e)
-    | otherwise = ERROR 2 ("Error: " ++ ioeGetErrorString e)
-
--- Split a bytestring into chunks of size dataSize
-chunks :: BS.ByteString -> [BS.ByteString]
-chunks b = if BS.null b then [] else chunk:(chunks remainder)
-    where (chunk, remainder) = BS.splitAt dataSize b
-
--- Source: https://stackoverflow.com/a/16192050/2333689
-mapWithIndex :: (a -> Int -> b) -> [a] -> [b]
-mapWithIndex f l = zipWith f l [0..]
-
-
-fromByteString2 :: BS.ByteString -> Maybe Packet
-fromByteString2 d = fromCharArray2 opcode16 rest
-    where (opHigh:opLow:rest) = BS.unpack d
-          opcode16 = word8to16 [opHigh,opLow]
-
-fromCharArray2 :: Word16 -> [Word8] -> Maybe Packet
-fromCharArray2 1 d = Just (RRQ filename mode)
-    where (filename, d1) = extractString d
-          (mode, _) = extractString d1
-fromCharArray2 2 d = Just (WRQ filename mode)
-    where (filename, d1) = extractString d
-          (mode, _) = extractString d1
-fromCharArray2 3 (b1:b2:b) = Just (DATA2 (word8to16 [b1,b2]) b)
-fromCharArray2 4 (b1:b2:_) = Just (ACK (word8to16 [b1,b2]))
-fromCharArray2 5 (b1:b2:b) = Just (ERROR (word8to16 [b1,b2]) errMsg)
-    where (errMsg, _) = extractString b
-fromCharArray2 x y = trace ("Received opcode=" ++ show x ++ " and data=" ++ (showList y "")) Nothing
-
 
 byteStringtoString :: BS.ByteString -> String
 byteStringtoString = map (chr.fromEnum).BS.unpack

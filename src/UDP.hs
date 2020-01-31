@@ -8,6 +8,7 @@ import Network.Socket.ByteString (recv, recvFrom, send, sendAll, sendAllTo)
 import Data.Maybe
 import qualified Data.ByteString (concat,length,pack)
 import TFTP
+import TFTP.Packet -- TODO export this directly from TFTP module
 
 -- SOURCE: http://www.mchaver.com/posts/2017-06-12-haskell-network-programming-1.html
 
