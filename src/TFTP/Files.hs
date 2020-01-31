@@ -7,6 +7,8 @@ import System.IO
 import System.IO.Error
 import Netascii
 import Util
+import Data.Maybe
+import Data.Either
 
 -- Attempt to read a file and split it into packets. If there's an error opening the file, return appropriate error packet.
 fileToPackets :: String -> String -> IO (Either Packet [Packet])
