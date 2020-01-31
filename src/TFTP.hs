@@ -62,7 +62,7 @@ sendDataPacket :: Session -> Packet -> IO ()
 sendDataPacket session packet@(DATA blockNum payload) = do
     sendPacket (sock session) packet    
     response <- recvPacket (sock session)
-    if not(isAck blockNum response) then sendDataPacket session packet else return () -- TODO better handle incorrect packages. Send error and close connection
+    when (not $ isAck blockNum response) (sendDataPacket session packet) -- TODO better handle incorrect packages. Send error and close connection
 
 recvFile :: Socket -> Word16 -> IO(Maybe BS.ByteString)
 recvFile sock blockNum = do
