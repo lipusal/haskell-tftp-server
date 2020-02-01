@@ -17,25 +17,37 @@ import Data.Either
 import Netascii
 import Control.Monad
 
-newSession :: Socket -> Packet -> Session
-newSession sock packet = Session { sock = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
+handle :: BS.ByteString -> Socket -> IO ()
+handle payload socket = do
+    let initialPacket = fromByteString payload
+    putStrLn("<<<< " ++ show initialPacket)
+    if isNothing initialPacket
+        then sendPacket socket (ERROR 4 "Not a TFTP packet")
+        else handleInitialPacket (fromJust initialPacket) socket
 
-handle :: Session -> IO ()
-handle session@(Session { openingPacket = (RRQ filename mode), sock = sock }) = do
+-- PRIVATE
+
+handleInitialPacket :: Packet -> Socket -> IO()
+handleInitialPacket packet@(RRQ filename mode) socket = handleRRQ packet socket
+handleInitialPacket packet@(WRQ filename mode) socket = handleWRQ packet socket
+handleInitialPacket _ socket = sendPacket socket (ERROR 4 "Not a valid initial TFTP packet")
+
+handleRRQ :: Packet -> Socket -> IO()
+handleRRQ (RRQ filename mode) socket = do
     eitherPackets <- fileToPackets filename (map toLower mode)
     either
-        (\errPacket -> sendPacket sock errPacket)
-        (\filePackets -> sendFile filePackets session)
+        (\errPacket -> sendPacket socket errPacket)
+        (\filePackets -> sendFile filePackets socket)
         eitherPackets
-handle session@(Session { openingPacket = (WRQ filename mode) }) = receiveFile session
-handle sess = trace ("Attempting to handle session with invalid opening packet: " ++ show sess) return ()
 
-receiveFile :: Session -> IO ()
-receiveFile session@(Session { openingPacket = (WRQ filename mode) }) = do
-    let socket = sock session
+handleWRQ :: Packet -> Socket -> IO()
+handleWRQ packet@(WRQ filename mode) socket = receiveFile packet socket
+
+receiveFile :: Packet -> Socket -> IO ()
+receiveFile (WRQ filename mode) socket = do
     eitherHandle <- openFileHandler filename WriteMode mode
     either
-        (sendPacket socket)  -- Partial application, this receives the packet
+        (sendPacket socket)  -- Partial application, this receives the error packet
         (\handle -> do
             sendPacket socket (ACK 0)
             maybeFileContents <- recvFile mode socket 1
@@ -43,7 +55,6 @@ receiveFile session@(Session { openingPacket = (WRQ filename mode) }) = do
             hClose handle
         )
         eitherHandle
-receiveFile _ = return ()
 
 sendPacket :: Socket -> Packet -> IO()
 sendPacket sock packet = trace(">>>> " ++ show packet) sendAll sock (toByteString packet)
@@ -54,15 +65,15 @@ recvPacket socket = do
     let result = fromByteString recvData
     trace("<<<< " ++ show result) return result
 
-sendFile :: [Packet] -> Session -> IO ()
-sendFile filePackets session = mapM_ (sendDataPacket session) filePackets
+sendFile :: [Packet] -> Socket -> IO ()
+sendFile filePackets socket = mapM_ (sendDataPacket socket) filePackets
 
 -- Send data packet until appropriate ACK is received
-sendDataPacket :: Session -> Packet -> IO ()
-sendDataPacket session packet@(DATA blockNum payload) = do
-    sendPacket (sock session) packet    
-    response <- recvPacket (sock session)
-    when (not $ isAck blockNum response) (sendDataPacket session packet) -- TODO better handle incorrect packages. Send error and close connection
+sendDataPacket :: Socket -> Packet -> IO ()
+sendDataPacket socket packet@(DATA blockNum payload) = do
+    sendPacket socket packet
+    response <- recvPacket socket
+    when (not $ isAck blockNum response) (sendDataPacket socket packet) -- TODO better handle incorrect packages. Send error and close connection
 
 recvFile :: String -> Socket -> Word16 -> IO(Maybe BS.ByteString)
 recvFile mode sock blockNum = do

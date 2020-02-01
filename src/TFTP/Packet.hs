@@ -1,16 +1,7 @@
 module TFTP.Packet where
 
-import Network.Socket (Socket)
 import Data.Word
 import Data.ByteString
-
-
-data Session = Session {
-    sock :: Socket, -- Socket with local and remote TIDs (ports)
-    openingPacket :: Packet,
-    blockNum :: Integer,
-    pendingPackets :: [Packet]
-} deriving Show
 
 data Packet =
     RRQ String String -- opcode 1 + filename + 0 + mode + 0
