@@ -16,6 +16,8 @@ import Data.Maybe
 import Data.Either
 import Netascii
 import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
 
 newSession :: Socket -> Packet -> Session
 newSession sock packet = Session { sock = sock, openingPacket = packet, blockNum = 0, pendingPackets = [] }
@@ -56,6 +58,23 @@ recvPacket socket = do
 
 sendFile :: [Packet] -> Session -> IO ()
 sendFile filePackets session = mapM_ (sendDataPacket session) filePackets
+
+sendDataPacket' :: Session -> Packet -> MaybeT IO ()
+sendDataPacket' sess pack = liftIO $ sendDataPacket sess pack
+
+myMapM :: Monad m => (t1 -> m (Maybe t)) -> [t1] -> m (Maybe [t])
+myMapM f = runMaybeT . mapM (MaybeT . f)
+
+blah :: [Packet] -> Session -> IO(Maybe ())
+blah packets session = myMapM sendDataPacket
+
+-- Send data packet until appropriate ACK is received
+sendDataPacket2 :: Session -> Packet -> IO (Maybe ())
+sendDataPacket2 session packet@(DATA blockNum payload) = do
+    sendPacket (sock session) packet    
+    response <- recvPacket (sock session)
+    if isAck blockNum response then return $ Just () else return Nothing
+    -- when (not $ isAck blockNum response) (sendDataPacket session packet) -- TODO better handle incorrect packages. Send error and close connection
 
 -- Send data packet until appropriate ACK is received
 sendDataPacket :: Session -> Packet -> IO ()

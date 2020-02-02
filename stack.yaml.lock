@@ -39,6 +39,20 @@ packages:
       sha256: 5613c97ff99c92b70e6984c3df41a1a58d21c061ab9d776efc264a3a6d4cb592
   original:
     hackage: network-house-0.1.0.2
+- completed:
+    hackage: transformers-0.5.6.2@sha256:6c959d14430f4deffb99579ba019de07c3d852a2122b6f449344386c7d75ff1d,3172
+    pantry-tree:
+      size: 2512
+      sha256: c79246ba7d61392c2f214376fed3c2a05e4b2649b93ec2c849a86493f278ace0
+  original:
+    hackage: transformers-0.5.6.2
+- completed:
+    hackage: mtl-2.2.2@sha256:1050fb71acd9f5d67da7d992583f5bd0eb14407b9dc7acc122af1b738b706ca3,2261
+    pantry-tree:
+      size: 1713
+      sha256: b8bdc2259e2f943a7252fb164805666fe108ac959d398e0af27b43ba2ebc241c
+  original:
+    hackage: mtl-2.2.2
 snapshots:
 - completed:
     size: 524154

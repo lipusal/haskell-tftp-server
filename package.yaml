@@ -24,6 +24,8 @@ dependencies:
 - network
 - bytestring
 - network-house
+- transformers
+- mtl
 
 library:
   source-dirs: src
