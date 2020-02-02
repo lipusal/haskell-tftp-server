@@ -2,13 +2,9 @@ module UDP where
 
 import Control.Concurrent        (forkIO, threadDelay)
 import Control.Monad             (forever)
--- import qualified Data.ByteString.Char8 as C
-import Network.Socket hiding     (recv, recvFrom, send, sendAll, sendAllTo)
-import Network.Socket.ByteString (recv, recvFrom, send, sendAll, sendAllTo)
-import Data.Maybe
-import qualified Data.ByteString (concat,length,pack)
-import TFTP
-import TFTP.Packet -- TODO export this directly from TFTP module
+import Network.Socket hiding     (recv, recvFrom)
+import Network.Socket.ByteString (recv, recvFrom)
+import qualified TFTP
 
 -- SOURCE: http://www.mchaver.com/posts/2017-06-12-haskell-network-programming-1.html
 
@@ -40,6 +36,6 @@ mainLoop listenSock = do
   connect socket txSocketAddr -- Connect to client on other end
   portNum <- socketPort socket
   putStrLn("Established socket pair <127.0.0.1:" ++ show portNum ++ ", " ++ show txSocketAddr ++ "> for new connection")
-  handle rxData socket
+  TFTP.handle rxData socket
   putStrLn("Connection <127.0.0.1:" ++ show portNum ++ ", " ++ show txSocketAddr ++ "> complete, closing socket")
   close' socket -- close' to throw exception if underlying system throws exception
