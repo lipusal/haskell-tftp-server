@@ -37,6 +37,10 @@ isAck :: Word16 -> Maybe Packet -> Bool
 isAck expectedBlockNum (Just(ACK blocknum)) = blocknum == expectedBlockNum
 isAck _ _ = False
 
+isError :: Maybe Packet -> Bool
+isError (Just(ERROR _ _)) = True
+isError _ = False
+
 deserialize :: BS.ByteString -> Maybe Packet
 deserialize bs = fromOpcode opcode payload
     where (header,payload) = BS.splitAt 2 bs

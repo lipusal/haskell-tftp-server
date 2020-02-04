@@ -14,6 +14,7 @@ import Data.Maybe
 import Data.Either
 import Netascii
 import Control.Monad
+import Util (sequenceWhile_)
 
 handle :: BS.ByteString -> Socket -> IO ()
 handle payload socket = do
@@ -39,12 +40,17 @@ recvPacket socket = do
     let result = deserialize recvData
     trace("<<<< " ++ show result) return result
 
--- Send data packet until appropriate ACK is received
-sendDataPacket :: Socket -> Packet -> IO ()
+-- (Re)send data packet until appropriate ACK or ERROR is received
+sendDataPacket :: Socket -> Packet -> IO (Bool)
 sendDataPacket socket packet@(DATA blockNum payload) = do
     sendPacket socket packet
     response <- recvPacket socket
-    when (not $ isAck blockNum response) (sendDataPacket socket packet) -- TODO better handle incorrect packages. Send error and close connection
+    let isOk = isAck blockNum response
+    let isErr = isError response
+    when isErr $ putStrLn("Received error packet, stopping transfer")
+    if isErr || isOk
+        then return isOk
+        else sendDataPacket socket packet
 
 -- Receive data until receiving a DATA packet with the expected block number
 recvDataPacket :: Socket -> Word16 -> IO(Packet, Maybe Word16)
@@ -59,11 +65,16 @@ handleRRQ (RRQ filename mode) socket = do
     eitherPackets <- fileToPackets filename (map toLower mode)
     either
         (\errPacket -> sendPacket socket errPacket)
-        (\filePackets -> sendFile filePackets socket)
+        -- (\filePackets -> sendFile filePackets socket)
+        (\filePackets -> sendFile' filePackets socket)
         eitherPackets
 
 sendFile :: [Packet] -> Socket -> IO ()
 sendFile filePackets socket = mapM_ (sendDataPacket socket) filePackets
+
+-- Stops at first ERROR packet received
+sendFile' :: [Packet] -> Socket -> IO ()
+sendFile' filePackets socket = sequenceWhile_ (== True) $ map (sendDataPacket socket) filePackets
 
 handleWRQ :: Packet -> Socket -> IO ()
 handleWRQ (WRQ filename mode) socket = do
