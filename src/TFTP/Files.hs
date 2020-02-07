@@ -15,18 +15,18 @@ fileToPackets :: String -> String -> IO (Either Packet [Packet])
 fileToPackets filename mode = do
     eitherHandle <- openFileHandler filename ReadMode mode
     either
-        (\errorPacket -> return(Left errorPacket))
+        (\errorPacket -> return $ Left errorPacket)
         (\handle -> handleToPackets handle mode)
         eitherHandle
 
 openFileHandler :: FilePath -> IOMode -> String -> IO (Either Packet Handle)
 openFileHandler path mode "netascii" = (do
     handle <- openFile path mode
-    return(Right handle)) `catchIOError` (\e -> return(Left(ioErrorHandler e)))
+    return(Right handle)) `catchIOError` (\e -> return $ Left $ ioErrorHandler e)
 openFileHandler path mode "octet" = (do
         handle <- openBinaryFile path mode
-        return(Right handle)) `catchIOError` (\e -> return(Left(ioErrorHandler e)))
-openFileHandler _ _ tftpMode = return(Left(ERROR 4 ("Invalid mode " ++ tftpMode)))
+        return(Right handle)) `catchIOError` (\e -> return $ Left $ ioErrorHandler e)
+openFileHandler _ _ tftpMode = return $ Left(ERROR 4 ("Invalid mode " ++ tftpMode))
 
 -- PRIVATE
 
