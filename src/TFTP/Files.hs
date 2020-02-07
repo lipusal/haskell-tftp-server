@@ -13,7 +13,6 @@ import Data.Either
 -- Attempt to read a file and split it into packets. If there's an error opening the file, return appropriate error packet.
 fileToPackets :: String -> String -> IO (Either Packet [Packet])
 fileToPackets filename mode = do
-    -- TODO this can probably be simplified
     eitherHandle <- openFileHandler filename ReadMode mode
     either
         (\errorPacket -> return(Left errorPacket))
@@ -23,10 +22,10 @@ fileToPackets filename mode = do
 openFileHandler :: FilePath -> IOMode -> String -> IO (Either Packet Handle)
 openFileHandler path mode "netascii" = (do
     handle <- openFile path mode
-    return(Right handle)) `catchIOError` (\e -> return(Left(myHandler e)))
+    return(Right handle)) `catchIOError` (\e -> return(Left(ioErrorHandler e)))
 openFileHandler path mode "octet" = (do
         handle <- openBinaryFile path mode
-        return(Right handle)) `catchIOError` (\e -> return(Left(myHandler e)))
+        return(Right handle)) `catchIOError` (\e -> return(Left(ioErrorHandler e)))
 openFileHandler _ _ tftpMode = return(Left(ERROR 4 ("Invalid mode " ++ tftpMode)))
 
 -- PRIVATE
@@ -49,8 +48,8 @@ handleToPackets handle "octet" = do
 fileContentsToPackets :: BS.ByteString -> [Packet]
 fileContentsToPackets contents = mapWithIndex (\dat index -> DATA (fromIntegral(index+1)) dat) (chunks contents)
 
-myHandler :: IOError -> Packet -- TODO rename
-myHandler e
+ioErrorHandler :: IOError -> Packet
+ioErrorHandler e
     | isAlreadyInUseError e = ERROR 2 "File already in use"
     | isDoesNotExistError e = ERROR 1 "File not found"
     | isPermissionError e = ERROR 2 ("Permission error: " ++ ioeGetErrorString e)
