@@ -72,22 +72,22 @@ serialize :: Packet -> BS.ByteString
 serialize packet = (BSL.toStrict).toLazyByteString $ serializer packet
 
 serializer :: Packet -> Builder
-serializer (RRQ filename mode) = word16LE 1
+serializer (RRQ filename mode) = word16BE 1
     <> stringUtf8 filename
     <> word8 0
     <> string7 mode
     <> word8 0
-serializer (WRQ filename mode) = word16LE 2
+serializer (WRQ filename mode) = word16BE 2
     <> stringUtf8 filename
     <> word8 0
     <> string7 mode
     <> word8 0
-serializer (DATA blocknum payload) = word16LE 3
-    <> word16LE blocknum
+serializer (DATA blocknum payload) = word16BE 3
+    <> word16BE blocknum
     <> byteString payload
-serializer (ACK blocknum) = word16LE 4
-    <> word16LE blocknum
-serializer (ERROR errNum errMsg) = word16LE 5
-    <> word16LE errNum
+serializer (ACK blocknum) = word16BE 4
+    <> word16BE blocknum
+serializer (ERROR errNum errMsg) = word16BE 5
+    <> word16BE errNum
     <> stringUtf8 errMsg
     <> word8 0
