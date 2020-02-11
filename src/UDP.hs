@@ -22,11 +22,11 @@ openPort portNum = do
   bind result (addrAddress serverAddr)
   return result
 
-runUDPServer :: IO ()
-runUDPServer = do
-  masterSocket <- openPort(Just "7000")
-  portNum <- socketPort masterSocket
-  putStrLn ("Started server on port " ++ (show portNum))
+runUDPServer :: Integer -> IO ()
+runUDPServer portNum = do
+  masterSocket <- openPort $ Just $ show portNum
+  actualPortNum <- socketPort masterSocket
+  putStrLn $ "Started server on port " ++ show actualPortNum
   forever (mainLoop masterSocket)
 
 mainLoop :: Socket -> IO ()
