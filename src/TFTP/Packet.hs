@@ -13,7 +13,13 @@ data Packet =
     | DATA Word16 BS.ByteString -- opcode 3 + block number + data TODO also consider lazy bytestrings
     | ACK Word16 -- opcode 4 + block number
     | ERROR Word16 String -- opcode 5 + error code + error message + 0
-    deriving Show
+
+instance Show Packet where
+    show (RRQ filename mode) = "RRQ " ++ filename ++ " " ++ mode
+    show (WRQ filename mode) = "WRQ " ++ filename ++ " " ++ mode
+    show packet@(DATA blockNum payload) = "DATA " ++ show blockNum ++ " (" ++ show(dataLength packet) ++ " bytes)"
+    show (ACK blockNum) = "ACK " ++ show blockNum
+    show (ERROR errCode errMsg) = "ERROR " ++ show errCode ++ " " ++ errMsg
 
 -- Check if the given package is a DATA package with the specified block number
 isData :: Word16 -> Maybe Packet -> Bool
