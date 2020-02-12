@@ -4,6 +4,8 @@ module Netascii (netasciiEncode, netasciiDecode, isNetascii) where
 
 import Data.Word
 import qualified Data.ByteString as BS
+import qualified System.IO
+import Util
 
 minValue = 0
 maxValue = 0x7F
@@ -17,10 +19,10 @@ netasciiEncode str = if isNetascii str then Just(encodeLineEndings str) else Not
 
 -- TODO NOW decode
 netasciiDecode :: BS.ByteString -> Maybe BS.ByteString
-netasciiDecode = netasciiEncode
+netasciiDecode str = if isNetascii str then Just(decodeLineEndings str) else Nothing
 
 isNetascii :: BS.ByteString -> Bool
-isNetascii str = BS.all isInRange str
+isNetascii str = BS.all isInRange str -- TODO exclude control characters
 
 --- PRIVATE
 
@@ -29,6 +31,16 @@ isInRange char = minValue <= char && char <= maxValue
 
 isLineBreak :: Word8 -> Bool
 isLineBreak x = x == LF || x == CR -- TODO reduce
+
+isCRLF :: Word8 -> Word8 -> Bool
+isCRLF CR LF = True
+isCRLF _ _ = False
+
+-- How to match exactly 2 elements: https://stackoverflow.com/a/35379402/2333689
+isCRLF' :: BS.ByteString -> Bool
+isCRLF' str = BS.length str == 2 && isCRLF x y where
+    x = BS.head str
+    y = BS.last str
 
 encodeLineEndings :: BS.ByteString -> BS.ByteString
 encodeLineEndings line = if BS.null line
@@ -62,3 +74,14 @@ encodePair CR (Just LF) = ([CR, LF], 2)
 encodePair CR (Just x) = ([CR, LF, x], 2)
 encodePair LF (Just x) = ([CR, LF, x], 2)
 encodePair x (Just y) = ([x, y], 2)
+
+-- Decode CRLF to system-native line break
+decodeLineEndings :: BS.ByteString -> BS.ByteString
+decodeLineEndings line = BS.concat decodedChunks where
+    decodedChunks = map decodeChunk chunks
+    chunks = BS.groupBy isCRLF line
+
+decodeChunk :: BS.ByteString -> BS.ByteString
+decodeChunk chunk
+    | isCRLF' chunk = if System.IO.nativeNewline == System.IO.CRLF then chunk else BS.singleton LF
+    | otherwise = chunk

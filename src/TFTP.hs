@@ -84,7 +84,8 @@ handleWRQ (WRQ filename mode) socket = do
         (\handle -> do
             sendPacket socket (ACK 0)
             maybeFileContents <- recvFile mode socket 1
-            when (isJust maybeFileContents) (BS.hPut handle (fromJust maybeFileContents))
+            let maybeDecodedFileContents = maybe Nothing netasciiDecode maybeFileContents
+            when (isJust maybeDecodedFileContents) $ BS.hPut handle $ fromJust maybeDecodedFileContents
             hClose handle
         )
         eitherHandle
