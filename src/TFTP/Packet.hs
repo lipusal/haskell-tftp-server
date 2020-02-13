@@ -10,7 +10,7 @@ import TFTP.Conversions
 data Packet =
     RRQ String String -- opcode 1 + filename + 0 + mode + 0
     | WRQ String String -- opcode 2 + filename + 0 + mode + 0
-    | DATA Word16 BS.ByteString -- opcode 3 + block number + data TODO also consider lazy bytestrings
+    | DATA Word16 BS.ByteString -- opcode 3 + block number + data
     | ACK Word16 -- opcode 4 + block number
     | ERROR Word16 String -- opcode 5 + error code + error message + 0
 

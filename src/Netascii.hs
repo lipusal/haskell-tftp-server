@@ -17,7 +17,6 @@ pattern CR = 13
 netasciiEncode :: BS.ByteString -> Maybe BS.ByteString
 netasciiEncode str = if isNetascii str then Just(encodeLineEndings str) else Nothing
 
--- TODO NOW decode
 netasciiDecode :: BS.ByteString -> Maybe BS.ByteString
 netasciiDecode str = if isNetascii str then Just(decodeLineEndings str) else Nothing
 
@@ -30,13 +29,12 @@ isInRange :: Word8 -> Bool
 isInRange char = minValue <= char && char <= maxValue
 
 isLineBreak :: Word8 -> Bool
-isLineBreak x = x == LF || x == CR -- TODO reduce
+isLineBreak x = x == LF || x == CR
 
 isCRLF :: Word8 -> Word8 -> Bool
 isCRLF CR LF = True
 isCRLF _ _ = False
 
--- How to match exactly 2 elements: https://stackoverflow.com/a/35379402/2333689
 isCRLF' :: BS.ByteString -> Bool
 isCRLF' str = BS.length str == 2 && isCRLF x y where
     x = BS.head str
