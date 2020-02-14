@@ -7,8 +7,9 @@ import qualified Data.ByteString as BS
 import qualified System.IO
 import Util
 
-minValue = 0
+minValue = 0x20
 maxValue = 0x7F
+controlChars = [0x00, LF, CR, 0x07, 0x08, 0x09, 0x11, 0x12] -- Control characters allowed in netascii, https://stackoverflow.com/a/10936875/2333689
 
 -- Idea from https://stackoverflow.com/a/46311245/2333689
 pattern LF = 10
@@ -21,12 +22,12 @@ netasciiDecode :: BS.ByteString -> Maybe BS.ByteString
 netasciiDecode str = if isNetascii str then Just(decodeLineEndings str) else Nothing
 
 isNetascii :: BS.ByteString -> Bool
-isNetascii str = BS.all isInRange str -- TODO exclude control characters
+isNetascii str = BS.all isInRange str
 
 --- PRIVATE
 
 isInRange :: Word8 -> Bool
-isInRange char = minValue <= char && char <= maxValue
+isInRange char = (minValue <= char && char <= maxValue) || elem char controlChars
 
 isLineBreak :: Word8 -> Bool
 isLineBreak x = x == LF || x == CR
