@@ -39,6 +39,13 @@ packages:
       sha256: 5613c97ff99c92b70e6984c3df41a1a58d21c061ab9d776efc264a3a6d4cb592
   original:
     hackage: network-house-0.1.0.2
+- completed:
+    hackage: random-1.1@sha256:7b67624fd76ddf97c206de0801dc7e888097e9d572974be9b9ea6551d76965df,1777
+    pantry-tree:
+      size: 637
+      sha256: 14a1b01728c5584e87c9fa00746a66e28ffd89dd2c0eabd334c8463953496e1b
+  original:
+    hackage: random-1.1
 snapshots:
 - completed:
     size: 524154

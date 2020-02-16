@@ -2,6 +2,7 @@ module TFTP.Files (fileToPackets, openFileHandler) where
 
 import TFTP.Packet
 import TFTP.Constants
+import TFTP.Conversions
 import qualified Data.ByteString as BS
 import System.IO
 import System.IO.Error
@@ -9,6 +10,8 @@ import Netascii
 import Util
 import Data.Maybe
 import Data.Either
+import TFTP.Caesar
+import Data.Word
 
 -- Attempt to read a file and split it into packets. If there's an error opening the file, return appropriate error packet.
 fileToPackets :: String -> String -> IO (Either Packet [Packet])
@@ -26,6 +29,7 @@ openFileHandler path mode "netascii" = (do
 openFileHandler path mode "octet" = (do
         handle <- openBinaryFile path mode
         return(Right handle)) `catchIOError` (\e -> return $ Left $ ioErrorHandler e)
+openFileHandler path ReadMode "caesar" = openFileHandler path ReadMode "netascii" -- Handle RRQ ceasar as netascii (note WRQ caesar is not contemplated)
 openFileHandler _ _ tftpMode = return $ Left(ERROR 4 ("Invalid mode " ++ tftpMode))
 
 -- PRIVATE
@@ -35,7 +39,7 @@ handleToPackets handle "netascii" = do
     contents <- BS.hGetContents handle
     hClose handle
     let encodedContents = netasciiEncode contents
-    let packerFn = \encodedContents -> Right $ fileContentsToPackets encodedContents
+    let packerFn = (Right).fileContentsToPackets
     let errPacket = Left(ERROR 0 "File contents are outside netascii range, use octet mode")
     let result = maybe errPacket packerFn encodedContents
     return result
@@ -43,6 +47,16 @@ handleToPackets handle "octet" = do
     contents <- BS.hGetContents handle
     hClose handle
     let result = Right $ fileContentsToPackets contents
+    return result
+handleToPackets handle "caesar" = do
+    contents <- BS.hGetContents handle
+    hClose handle
+    let encodedContents = netasciiEncode contents
+    key <- randomNum' Netascii.minValue Netascii.maxValue
+    -- Return a DATA 0 packet with the offset, and the rest of the data packets
+    let packerFn = caesarEncodeAdapter key -- Partial application, will receive netascii-encoded contents
+    let errPacket = Left(ERROR 0 "File contents are outside netascii range, use octet mode")
+    let result = maybe errPacket packerFn encodedContents
     return result
 
 fileContentsToPackets :: BS.ByteString -> [Packet]
@@ -59,3 +73,10 @@ ioErrorHandler e
 chunks :: BS.ByteString -> [BS.ByteString]
 chunks b = if BS.null b then [] else chunk:(chunks remainder)
     where (chunk, remainder) = BS.splitAt dataSize b
+
+-- Adapter to use the caesarEncode function as an Either handler when contents are OK
+caesarEncodeAdapter :: Word16 -> BS.ByteString -> Either Packet [Packet]
+caesarEncodeAdapter key safeContent = Right $ header:payload where
+    header = DATA (0 :: Word16) (word16ToByteString key)
+    encodedContent = caesarEncode key safeContent
+    payload = fileContentsToPackets encodedContent

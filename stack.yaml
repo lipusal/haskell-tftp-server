@@ -47,6 +47,7 @@ extra-deps:
 - network-2.8.0.1
 - bytestring-0.10.8.2
 - network-house-0.1.0.2
+- random-1.1
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

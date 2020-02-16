@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-} -- To be able to use constant variables in pattern matching
 
-module Netascii (netasciiEncode, netasciiDecode, isNetascii) where
+module Netascii (netasciiEncode, netasciiDecode, isNetascii, minValue, maxValue) where
 
 import Data.Word
 import qualified Data.ByteString as BS

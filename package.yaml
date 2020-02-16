@@ -24,6 +24,7 @@ dependencies:
 - network
 - bytestring
 - network-house
+- random
 
 library:
   source-dirs: src
