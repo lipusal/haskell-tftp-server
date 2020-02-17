@@ -1,5 +1,5 @@
-# haskell-tftp-server
-This is an RFC 1350-compliant TFPT server, implemented as a final for a Functional Programming class.
+# haskell-tftp-server - Caesar mode server
+In this branch, the server supports `caesar` mode: Accepts only netascii files and performs the [Caesar cipher](https://en.wikipedia.org/wiki/Caesar_cipher) on them, only in RRQ.
 
 ## Installation
 
@@ -10,6 +10,6 @@ This is an RFC 1350-compliant TFPT server, implemented as a final for a Function
 ## Usage
 
 1. `stack run [portNum=69]`
-2. Interrupt to stop (ie. ctrl/cmd + c). Note that this doesn't seem to terminate the program correctly on Windows (:disappointed:) so you might need to forcibly terminate it through Task Manager.
+2. Check out `caesar-client` and read the [Client's instructions](https://github.com/lipusal/haskell-tftp-server/blob/caesar-client/README.md)
 
-This automatically compiles the program before running, so you don't need to run `stack build` again if you made any changes.
+Note that all other functions still work normally, this branch only adds support for Caesar mode.
