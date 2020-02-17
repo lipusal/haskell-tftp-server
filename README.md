@@ -1,6 +1,8 @@
 # haskell-tftp-server
 This is an RFC 1350-compliant TFPT server, implemented as a final for a Functional Programming class.
 
+This implementation also introduces a new transfer mode, `caesar` (see [caesar-server](https://github.com/lipusal/haskell-tftp-server/tree/caesar-server) and [caesar-client](https://github.com/lipusal/haskell-tftp-server/tree/caesar-client) branches)
+
 ## Installation
 
 1. [Install Stack](https://docs.haskellstack.org/en/stable/install_and_upgrade)
