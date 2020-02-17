@@ -74,7 +74,7 @@ sendFile filePackets socket = mapM_ (sendDataPacket socket) filePackets
 
 -- Stops at first ERROR packet received
 sendFile' :: [Packet] -> Socket -> IO ()
-sendFile' filePackets socket = sequenceWhile_ (== True) $ map (sendDataPacket socket) filePackets
+sendFile' filePackets socket = sequenceWhile_ id $ map (sendDataPacket socket) filePackets
 
 handleWRQ :: Packet -> Socket -> IO ()
 handleWRQ (WRQ filename mode) socket = do
