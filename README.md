@@ -1,5 +1,5 @@
-# haskell-tftp-server
-This is an RFC 1350-compliant TFPT server, implemented as a final for a Functional Programming class.
+# haskell-tftp-server - Caesar mode client
+In this branch, the main executable is replaced with a client (not a server) that performs an RRQ request in `caesar` mode.
 
 ## Installation
 
@@ -9,7 +9,11 @@ This is an RFC 1350-compliant TFPT server, implemented as a final for a Function
 
 ## Usage
 
-1. `stack run [portNum=69]`
-2. Interrupt to stop (ie. ctrl/cmd + c). Note that this doesn't seem to terminate the program correctly on Windows (:disappointed:) so you might need to forcibly terminate it through Task Manager.
+0. Check out `caesar-server` and read the [Servers's instructions](https://github.com/lipusal/haskell-tftp-server/blob/caesar-server/README.md)
+1. Checkout this branch
+1. `stack run <ip> <port> <filename>`, where `filename` is relative to where the server is running
 
-This automatically compiles the program before running, so you don't need to run `stack build` again if you made any changes.
+This will perform an RRQ request in `caesar` mode, writing to a file with the same name as the remote file.
+The client exits after error or after a successful transfer.
+
+**NOTE:** The client does not decipher the file. For that, use the decoder Ruby script with `ruby decoder.rb <filename>`, which will read the cipher key from the file and print the deciphered file to STDOUT. Compare that with the original file to make sure everything is in place.
