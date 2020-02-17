@@ -1,4 +1,4 @@
-module TFTP.Caesar (caesarEncode) where
+module TFTP.Caesar (caesarEncode, caesarDecode) where
 
 import TFTP.Packet
 import qualified Netascii (minValue, maxValue)
@@ -17,11 +17,22 @@ import Data.Word
 caesarEncode :: Word16 -> (BS.ByteString -> BS.ByteString)
 caesarEncode key = BS.map $ caesarEncodeWord (numberConversion key) (numberConversion Netascii.maxValue)
 
+-- Returns a function that, given a ByteString, shifts all netascii contents BACK by `key` number of characters (Caesar decode)
+caesarDecode :: Word16 -> (BS.ByteString -> BS.ByteString)
+caesarDecode key = BS.map $ caesarDecodeWord (numberConversion key) (numberConversion Netascii.minValue)
+
 -- PRIVATE
 
 caesarEncodeWord :: Int -> Int -> (Word8 -> Word8)
 caesarEncodeWord key maxValue = toEnum.(caesarEncode' key maxValue).fromEnum
 
+caesarDecodeWord :: Int -> Int -> (Word8 -> Word8)
+caesarDecodeWord key minValue = toEnum.(caesarDecode' key minValue).fromEnum
+
+
 -- Actual Caesar encode: Shift a char as int
 caesarEncode' :: Int -> Int -> Int -> Int
 caesarEncode' key maxValue c = (c + key) `mod` maxValue
+
+caesarDecode' :: Int -> Int -> Int -> Int
+caesarDecode' key minValue c = (c - key) `mod` minValue

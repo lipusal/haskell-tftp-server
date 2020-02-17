@@ -29,7 +29,7 @@ openFileHandler path mode "netascii" = (do
 openFileHandler path mode "octet" = (do
         handle <- openBinaryFile path mode
         return(Right handle)) `catchIOError` (\e -> return $ Left $ ioErrorHandler e)
-openFileHandler path ReadMode "caesar" = openFileHandler path ReadMode "netascii" -- Handle RRQ ceasar as netascii (note WRQ caesar is not contemplated)
+openFileHandler path mode "caesar" = openFileHandler path mode "netascii" -- Handle ceasar as netascii
 openFileHandler _ _ tftpMode = return $ Left(ERROR 4 ("Invalid mode " ++ tftpMode))
 
 -- PRIVATE
@@ -53,10 +53,8 @@ handleToPackets handle "caesar" = do
     hClose handle
     let encodedContents = netasciiEncode contents
     key <- randomNum' Netascii.minValue Netascii.maxValue
-    -- Return a DATA 0 packet with the offset, and the rest of the data packets
-    let packerFn = caesarEncodeAdapter key -- Partial application, will receive netascii-encoded contents
     let errPacket = Left(ERROR 0 "File contents are outside netascii range, use octet mode")
-    let result = maybe errPacket packerFn encodedContents
+    let result = maybe errPacket (caesarEncodeAdapter key) encodedContents
     return result
 
 fileContentsToPackets :: BS.ByteString -> [Packet]

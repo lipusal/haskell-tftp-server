@@ -1,4 +1,4 @@
-module TFTP (handle) where
+module TFTP (handle, sendPacket, recvPacket, recvFile) where
 
 import Data.Word
 import Data.Char
