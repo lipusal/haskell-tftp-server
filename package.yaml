@@ -30,7 +30,7 @@ library:
   source-dirs: src
 
 executables:
-  tftp-caesar-client:
+  tftp-server:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
